@@ -1,68 +1,93 @@
 import { SignMessageModal } from "@/components/modals/sign-message-modal";
-import { toaster } from "@/components/ui/toaster";
 import { useLogin, useLogout } from "@/hook/useAuth";
 import { useGetMe } from "@/hook/useUser";
-import { showErrorToast } from "@/shared/utils/toast";
+import { showErrorToast, showWarningToast } from "@/shared/utils/toast";
 import { useAuthStore } from "@/stores/useAuth";
 import { useUserStore } from "@/stores/useUser";
 import { useEffect, useState, type ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAccount, useSignMessage } from "wagmi";
+import { getChains, switchChain, watchAccount } from "@wagmi/core";
+import { config } from "@/shared/config/wagmiConfig";
+import { ROUTES } from "@/shared/constants/router";
+import { signMessage } from "@/shared/constants/environment";
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isSigned, setIsSigned] = useState<boolean>(false);
-  const [isConnectingWallet, setIsConnectingWallet] = useState<boolean>(false);
+  const navigate = useNavigate();
 
   const { accessToken } = useAuthStore();
-  const { user, setUser } = useUserStore();
+  const { user } = useUserStore();
 
-  const { address: walletAddress, isConnected, isConnecting } = useAccount();
+  const { address: walletAddress, isConnected, connector } = useAccount();
   const { signMessageAsync } = useSignMessage();
+  const chains = getChains(config);
+  type ValidChainId = (typeof config.chains)[number]["id"];
 
   const { mutateAsync: login } = useLogin();
   const { mutateAsync: logout } = useLogout();
-  const { mutateAsync: getMe } = useGetMe();
+  const { mutate: getMe } = useGetMe();
 
   useEffect(() => {
-    if (isConnecting) {
-      setIsConnectingWallet(true);
-    }
-  }, [isConnecting]);
-
-  useEffect(() => {
-    if (!isConnectingWallet) {
-      return;
-    }
     if (!isConnected || !walletAddress) {
-      setIsSigned(false);
-      if (accessToken) {
+      if (accessToken) logout();
+    }
+  }, [isConnected, walletAddress, accessToken]);
+
+  useEffect(() => {
+    if (isConnected && walletAddress && !accessToken) {
+      if (connector?.name !== "MetaMask") {
+        showWarningToast("Please connect with MetaMask.");
         logout();
         return;
       }
-      return;
-    }
 
-    if (isConnected && accessToken) {
-      if (user) return;
-      getMe()
-        .then((user) => {
-          setUser(user);
-        })
-        .catch(async () => {
-          logout();
-          toaster.create({
-            description: "Please reconnect!",
-            type: "warning",
-            meta: {
-              closable: true,
-              showProgress: true,
-            },
-          });
-        });
-    }
-    if (isConnected && !accessToken) {
       handleLogin();
     }
-  }, [isConnected, accessToken]);
+  }, [isConnected, walletAddress, accessToken]);
+
+  useEffect(() => {
+    if (isConnected && walletAddress && accessToken && !user) {
+      getMe();
+    }
+  }, [isConnected, walletAddress, accessToken, user]);
+
+  useEffect(() => {
+    const unwatch = watchAccount(config, {
+      onChange(account, prevAccount) {
+        //check change wallet
+        const newAddress = account.address;
+        const oldAddress = prevAccount?.address;
+        if (newAddress && oldAddress && newAddress !== oldAddress) {
+          navigate(ROUTES.APP.HOME, { replace: true });
+          showWarningToast("Wallet changed. Please login again.");
+          logout();
+        }
+
+        //check change chain
+        const currentChainId = account?.chainId;
+        const prevChainId = prevAccount?.chainId;
+        if (typeof currentChainId !== "number") return;
+        const isSupported = chains.some((item) => item.id === currentChainId);
+        if (!isSupported && prevChainId) {
+          const wasSupported = chains.some((item) => item.id === prevChainId);
+
+          showWarningToast(
+            `🚫 The network you selected is not supported on ADIX.`
+          );
+
+          if (wasSupported) {
+            switchChain(config, { chainId: prevChainId as ValidChainId });
+          } else {
+            switchChain(config, { chainId: chains[0].id });
+          }
+        }
+      },
+    });
+    return () => {
+      unwatch();
+    };
+  }, [accessToken, walletAddress]);
 
   async function handleLogin() {
     if (!signMessageAsync || !isConnected || !walletAddress) {
@@ -73,24 +98,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     try {
       setIsSigned(true);
-      const message = "Please sign this message to login";
-      const signature = await signMessageAsync({ message });
+      const signature = await signMessageAsync({ message: signMessage });
       await login({
         walletAddress,
         signature,
-      }).catch(() => {
-        throw new Error("LOGIN_FAILED");
       });
-    } catch (err) {
-      const error = err as Error;
-      switch (error.message) {
-        case "SIGN_FAILED":
-          showErrorToast("Failed to sign the message.");
-          break;
-        case "LOGIN_FAILED":
-          showErrorToast("Login failed.");
-          break;
-      }
+    } catch {
       logout();
     } finally {
       setIsSigned(false);

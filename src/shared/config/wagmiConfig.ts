@@ -1,8 +1,22 @@
 import { getDefaultConfig } from "@rainbow-me/rainbowkit";
-import { arbitrum, base, mainnet, optimism, polygon } from "wagmi/chains";
+import { bscTestnet } from "wagmi/chains";
+import { projectId } from "../constants/environment";
+import {
+  injectedWallet,
+  metaMaskWallet,
+  walletConnectWallet,
+} from "@rainbow-me/rainbowkit/wallets";
 
 export const config = getDefaultConfig({
-  appName: "RainbowKit demo",
-  projectId: "YOUR_PROJECT_ID",
-  chains: [mainnet, polygon, optimism, arbitrum, base],
+  appName: "amt-frontend",
+  projectId: projectId,
+  chains: [bscTestnet],
+  wallets: [
+    {
+      groupName: "Recommended",
+      wallets: [injectedWallet, metaMaskWallet, walletConnectWallet],
+    },
+  ],
+  ssr: false,
+  multiInjectedProviderDiscovery: false,
 });

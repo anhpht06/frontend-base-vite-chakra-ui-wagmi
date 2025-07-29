@@ -12,8 +12,8 @@ export const useLogin = () => {
   return useMutation<LoginResponse, AxiosError, LoginRequest>({
     mutationKey: ["useLogin"],
     mutationFn: login,
-    onSuccess: (res) => {},
-    onError: (error) => {},
+    onSuccess: () => {},
+    onError: () => {},
     onSettled: () => {},
   });
 };

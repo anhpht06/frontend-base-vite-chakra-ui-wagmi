@@ -4,5 +4,3 @@ export const getAddressFormat = (address: string | undefined, end?: number) => {
   const endText = address.slice(-(end ?? 4));
   return `${frontText}...${endText}`;
 };
-
-export function getTxHashLink(txHash: string) {}

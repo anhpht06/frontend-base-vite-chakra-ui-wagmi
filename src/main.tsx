@@ -6,17 +6,18 @@ import { Provider } from "./components/ui/provider";
 import { ColorModeProvider } from "./components/ui/color-mode";
 import { WalletProvider } from "./providers/WagmiProvider";
 import "@rainbow-me/rainbowkit/styles.css";
-import { AuthProvider } from "./providers/AuthProvider";
 import { Toaster } from "./components/ui/toaster";
+import { Suspense } from "react";
+import Loading from "./components/PageLoading";
 
 createRoot(document.getElementById("root")!).render(
   <WalletProvider>
     <Provider>
       <ColorModeProvider>
-        <AuthProvider>
+        <Suspense fallback={<Loading />}>
           <RouterProvider router={router} />
-          <Toaster />
-        </AuthProvider>
+        </Suspense>
+        <Toaster />
       </ColorModeProvider>
     </Provider>
   </WalletProvider>

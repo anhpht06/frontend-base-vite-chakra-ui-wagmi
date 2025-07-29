@@ -2,7 +2,7 @@ export const formatAmount = (value: string | number) => {
   if (!value) return "0";
 
   const [intPart, decimalPart] = (
-    typeof value === "number" ? value?.toString() : value
+    typeof value === "number" ? value.toString() : value
   ).split(".");
   const formattedInt = Number(intPart || "0").toLocaleString("en-US");
 

@@ -5,9 +5,10 @@ import axios, {
 } from "axios";
 import { apiUrl } from "../constants/environment";
 import { showErrorToast } from "../utils/toast";
+import { useAuthStore } from "@/stores/useAuth";
 
-const getAuthToken = (): string | null => {
-  return localStorage.getItem("access_token") || null;
+const getToken = (): string | null => {
+  return useAuthStore.getState().accessToken;
 };
 
 const refreshToken = async (): Promise<string | null> => {
@@ -40,7 +41,7 @@ const request: AxiosInstance = axios.create({
 
 request.interceptors.request.use(
   (config) => {
-    const token = getAuthToken();
+    const token = getToken();
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
